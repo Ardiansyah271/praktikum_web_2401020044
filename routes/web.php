@@ -1,31 +1,53 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 
-Route::get('/', function () {
-    return view('welcome');
+// Route GET: Menampilkan halaman form
+Route::get('/form-mahasiswa', function () {
+    return view('form-mahasiswa');
 });
 
-// Route Pertemuan 2 (Sesuai Modul)
-Route::get('/latihan-php', function () {
-    // 1. Variabel Data Diri
-    $nama = "M. ARIEF SETIAWAN"; // Ganti dengan nama kamu
-    $nim = "2401020044";         // Ganti dengan NIM kamu
+// Route POST: Memproses, membersihkan (sanitasi), dan memvalidasi data
+Route::post('/form-mahasiswa', function (Request $request) {
+    // 1. Sanitasi Input
+    $dataBersih = [
+        'nama'  => strip_tags(trim((string) $request->input('nama'))),
+        'email' => filter_var((string) $request->input('email'), FILTER_SANITIZE_EMAIL),
+        'usia'  => trim((string) $request->input('usia')),
+        'nim'   => trim((string) $request->input('nim')),
+    ];
 
-    // 2. Array Tunggal Nilai Mata Kuliah
-    $nilaiMatkul = [85, 78, 90, 88, 75];
+    // 2. Aturan Validasi
+    $validator = Validator::make($dataBersih, [
+        'nama'  => ['required', 'min:3', 'max:50'],
+        'email' => ['required', 'email'],
+        'usia'  => ['required', 'integer', 'min:17', 'max:60'],
+        'nim'   => ['required', 'digits_between:8,12'],
+    ], [
+        'nama.required'       => 'Nama wajib diisi.',
+        'nama.min'            => 'Nama minimal 3 karakter.',
+        'email.required'      => 'Email wajib diisi.',
+        'email.email'         => 'Format email tidak valid.',
+        'usia.required'       => 'Usia wajib diisi.',
+        'usia.integer'        => 'Usia harus berupa angka.',
+        'usia.min'            => 'Usia minimal 17 tahun.',
+        'usia.max'            => 'Usia maksimal 60 tahun.',
+        'nim.required'        => 'NIM wajib diisi.',
+        'nim.digits_between'  => 'NIM harus berupa angka 8-12 digit.',
+    ]);
 
-    // 3. Menghitung Rata-rata Nilai
-    $totalNilai = array_sum($nilaiMatkul);
-    $rataRata = $totalNilai / count($nilaiMatkul);
-
-    // 4. Percabangan (If-Else) Status Kelulusan
-    if ($rataRata >= 75) {
-        $status = "LULUS";
-    } else {
-        $status = "TIDAK LULUS";
+    // 3. Jika Validasi Gagal
+    if ($validator->fails()) {
+        return redirect('/form-mahasiswa')
+            ->withErrors($validator)
+            ->withInput();
     }
 
-    // 5. Mengirim Data ke View
-    return view('latihan-php', compact('nama', 'nim', 'nilaiMatkul', 'rataRata', 'status'));
+    // 4. Jika Validasi Berhasil
+    $data = $validator->validated();
+    $data['usia'] = (int) $data['usia'];
+
+    return view('hasil-form', ['data' => $data]);
 });
